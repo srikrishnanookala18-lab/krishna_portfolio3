@@ -17,6 +17,7 @@ const __dirname = path.dirname(__filename);
 
 const PORT = Number(process.env.PORT || 3000);
 const GITHUB_API = 'https://api.github.com';
+const inspectCache = new Map<string, { expiresAt: number; payload: unknown }>();
 
 function githubHeaders(token?: string): Record<string, string> {
   const headers: Record<string, string> = {
@@ -66,12 +67,21 @@ async function main() {
       const owner = String(req.query.owner || 'srikrishnanookala18-lab').trim();
       const repo = String(req.query.repo || 'portfolio2').trim();
       const token = req.headers['x-github-token'] ? String(req.headers['x-github-token']) : undefined;
+      const cacheKey = `${owner}/${repo}`.toLowerCase();
+
+      const cached = !token ? inspectCache.get(cacheKey) : undefined;
+      if (cached && cached.expiresAt > Date.now()) {
+        return res.json(cached.payload);
+      }
 
       const repoRes = await fetch(
         `${GITHUB_API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
         { headers: githubHeaders(token) }
       );
       if (!repoRes.ok) {
+        if (cached) {
+          return res.json(cached.payload);
+        }
         const msg = await repoRes.text();
         return res.status(repoRes.status).json({ error: `Unable to fetch repository metadata: ${msg}` });
       }
@@ -109,7 +119,7 @@ async function main() {
 
       const breakdown = rawHtml ? analyzeHtmlBytes(rawHtml) : null;
 
-      return res.json({
+      const payload = {
         owner,
         repo,
         fullName: repoMeta.full_name,
@@ -127,7 +137,13 @@ async function main() {
         primaryHtmlFile: primaryHtml ? primaryHtml.path : null,
         rawHtml,
         breakdown,
-      });
+      };
+
+      if (!token && rawHtml) {
+        inspectCache.set(cacheKey, { expiresAt: Date.now() + 5 * 60 * 1000, payload });
+      }
+
+      return res.json(payload);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Repository inspection failed';
       return res.status(500).json({ error: message });

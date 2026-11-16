@@ -1,4 +1,4 @@
-import { CheckCircle2, Download, ExternalLink, GitCommit, KeyRound, ShieldCheck, Terminal } from 'lucide-react';
+import { Check, CheckCircle2, Copy, Download, ExternalLink, GitCommit, KeyRound, ShieldCheck, Terminal } from 'lucide-react';
 import { useState } from 'react';
 import type {
   GeneratedFile,
@@ -34,6 +34,27 @@ export function GithubPushPanel({
   const [pushing, setPushing] = useState(false);
   const [pushResult, setPushResult] = useState<GithubPushResponse | null>(null);
   const [pushError, setPushError] = useState<string | null>(null);
+  const [cliCopied, setCliCopied] = useState(false);
+
+  const gitCliSnippet = [
+    `git clone https://github.com/${refactorResult.owner}/${refactorResult.repo}.git`,
+    `cd ${refactorResult.repo}`,
+    ...(removeOriginal ? [`git rm "${refactorResult.originalFilename}"`] : []),
+    `unzip -o ../${refactorResult.repo}-python-refactored.zip`,
+    `git add .`,
+    `git commit -m "${commitMessage.replace(/"/g, '\\"')}"`,
+    `git push origin ${branch}`,
+  ].join('\n');
+
+  const handleCopyCli = async () => {
+    try {
+      await navigator.clipboard.writeText(gitCliSnippet);
+      setCliCopied(true);
+      setTimeout(() => setCliCopied(false), 1800);
+    } catch {
+      // Clipboard blocked in some iframe contexts
+    }
+  };
 
   const handleVerifyToken = async () => {
     setVerifyError(null);
@@ -325,6 +346,34 @@ export function GithubPushPanel({
             using Python&apos;s standard library (zero pip install failures) and publishes{' '}
             <span className="font-mono text-slate-800">dist/index.html</span> automatically on every push.
           </p>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="text-sm font-semibold text-slate-900">
+              Alternative: Local Git CLI Commands
+            </h4>
+            <button
+              type="button"
+              onClick={handleCopyCli}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors whitespace-nowrap shrink-0"
+            >
+              {cliCopied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Copied</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Copy Commands</span>
+                </>
+              )}
+            </button>
+          </div>
+          <pre className="bg-slate-950 text-slate-200 font-mono text-[11px] p-3.5 rounded-lg overflow-x-auto leading-5">
+            {gitCliSnippet}
+          </pre>
         </div>
       </div>
     </div>
