@@ -1,0 +1,8 @@
+{
+  "name": "PyRefactor Studio",
+  "description": "Convert monolithic HTML portfolio repositories into modular Python-powered web apps while preserving live Netlify deployment.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
